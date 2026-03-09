@@ -94,6 +94,7 @@ impl MemberSymbol {
     pub fn mask_sql(&self) -> Option<&Rc<SqlCall>> {
         match self {
             Self::Dimension(d) => d.mask_sql().as_ref(),
+            Self::TimeDimension(td) => td.base_symbol().mask_sql(),
             Self::Measure(m) => m.mask_sql().as_ref(),
             _ => None,
         }
