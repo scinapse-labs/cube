@@ -38,6 +38,7 @@ pub struct DimensionSymbol {
     is_multi_stage: bool,
     is_sub_query: bool,
     propagate_filters_to_sub_query: bool,
+    mask_sql: Option<Rc<SqlCall>>,
 }
 
 impl DimensionSymbol {
@@ -55,6 +56,7 @@ impl DimensionSymbol {
         is_multi_stage: bool,
         is_sub_query: bool,
         propagate_filters_to_sub_query: bool,
+        mask_sql: Option<Rc<SqlCall>>,
     ) -> Rc<Self> {
         Rc::new(Self {
             cube,
@@ -70,6 +72,7 @@ impl DimensionSymbol {
             is_multi_stage,
             is_sub_query,
             propagate_filters_to_sub_query,
+            mask_sql,
         })
     }
 
@@ -155,6 +158,10 @@ impl DimensionSymbol {
 
     pub fn is_sub_query(&self) -> bool {
         self.is_sub_query
+    }
+
+    pub fn mask_sql(&self) -> &Option<Rc<SqlCall>> {
+        &self.mask_sql
     }
 
     pub fn add_group_by(&self) -> &Option<Vec<Rc<MemberSymbol>>> {
@@ -283,6 +290,7 @@ impl DimensionSymbol {
 pub struct DimensionSymbolFactory {
     path: SymbolPath,
     sql: Option<Rc<dyn MemberSql>>,
+    mask_sql: Option<Rc<dyn MemberSql>>,
     definition: Rc<dyn DimensionDefinition>,
     cube_evaluator: Rc<dyn CubeEvaluator>,
 }
@@ -294,9 +302,11 @@ impl DimensionSymbolFactory {
     ) -> Result<Self, CubeError> {
         let definition = cube_evaluator.dimension_by_path(path.full_name().clone())?;
         let sql = definition.sql()?;
+        let mask_sql = definition.resolved_mask_sql()?;
         Ok(Self {
             path,
             sql,
+            mask_sql,
             definition,
             cube_evaluator,
         })
@@ -308,6 +318,7 @@ impl SymbolFactory for DimensionSymbolFactory {
         let Self {
             path,
             sql,
+            mask_sql,
             definition,
             cube_evaluator,
         } = self;
@@ -316,6 +327,12 @@ impl SymbolFactory for DimensionSymbolFactory {
 
         let sql = if let Some(sql) = sql {
             Some(compiler.compile_sql_call(path.cube_name(), sql)?)
+        } else {
+            None
+        };
+
+        let mask_sql = if let Some(mask_sql) = mask_sql {
+            Some(compiler.compile_sql_call(path.cube_name(), mask_sql)?)
         } else {
             None
         };
@@ -480,6 +497,7 @@ impl SymbolFactory for DimensionSymbolFactory {
             is_multi_stage,
             is_sub_query,
             propagate_filters_to_sub_query,
+            mask_sql,
         ));
 
         if let Some(granularity) = path.granularity() {

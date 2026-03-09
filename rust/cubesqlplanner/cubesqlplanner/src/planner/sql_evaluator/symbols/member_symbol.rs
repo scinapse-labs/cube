@@ -91,6 +91,14 @@ impl MemberSymbol {
         }
     }
 
+    pub fn mask_sql(&self) -> Option<&Rc<SqlCall>> {
+        match self {
+            Self::Dimension(d) => d.mask_sql().as_ref(),
+            Self::Measure(m) => m.mask_sql().as_ref(),
+            _ => None,
+        }
+    }
+
     pub fn alias(&self) -> String {
         match self {
             Self::Dimension(d) => d.alias(),
